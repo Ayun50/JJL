@@ -13,6 +13,8 @@ let timerInterval = null;
 let timerSeconds = 0;
 let timerRunning = false;
 let hasTypedInCurrentList = false; 
+let firstWordLength = 0;
+let secondWordLength = 0;
 
 // DOM elements
 const themeSelect = document.getElementById('theme');
@@ -141,6 +143,8 @@ function clearWordDisplay() {
     speakBtn.disabled = true;
     hiddenInput.disabled = true;
     hiddenInput.value = '';
+    firstWordLength = 0;
+    secondWordLength = 0;
 }
 
 // FIX: Added shuffle function
@@ -208,40 +212,94 @@ function loadWord(index) {
 
 function createLetterBoxes(word) {
     letterBoxesDiv.innerHTML = '';
-    for (let i = 0; i < word.length; i++) {
-        const box = document.createElement('span');
-        box.className = 'letter-box';
-        if (word[i] === ' ') {
-            box.dataset.space = 'true';
-            box.textContent = '·'; // placeholder dot
+    const words = word.split(' ');
+    
+    // Decide layout: if two words and total length > 13, split into two rows
+    if (words.length === 2 && word.length > 13) {
+        firstWordLength = words[0].length;
+        secondWordLength = words[1].length;
+        
+        // First row (first word)
+        const row1 = document.createElement('div');
+        row1.className = 'word-row';
+        for (let i = 0; i < firstWordLength; i++) {
+            const box = document.createElement('span');
+            box.className = 'letter-box';
+            row1.appendChild(box);
         }
-        letterBoxesDiv.appendChild(box);
+        letterBoxesDiv.appendChild(row1);
+        
+        // Second row (second word)
+        const row2 = document.createElement('div');
+        row2.className = 'word-row';
+        for (let i = 0; i < secondWordLength; i++) {
+            const box = document.createElement('span');
+            box.className = 'letter-box';
+            row2.appendChild(box);
+        }
+        letterBoxesDiv.appendChild(row2);
+    } else {
+        // Single word or short phrase – one row, including space(s)
+        firstWordLength = word.length;
+        secondWordLength = 0;
+        const row = document.createElement('div');
+        row.className = 'word-row';
+        for (let i = 0; i < word.length; i++) {
+            const box = document.createElement('span');
+            box.className = 'letter-box';
+            // Mark space positions for visual dot (only for single‑row mode)
+            if (word[i] === ' ') {
+                box.dataset.space = 'true';
+            }
+            row.appendChild(box);
+        }
+        letterBoxesDiv.appendChild(row);
     }
 }
 
 // Update letter boxes based on hidden input value
 function updateLetterBoxes() {
+    if (!currentWordObject) return;
     const value = hiddenInput.value;
     const boxes = document.querySelectorAll('.letter-box');
-    if (value.length > boxes.length) {
-        hiddenInput.value = value.slice(0, boxes.length);
+    
+    // Calculate maximum allowed length (including one space if split)
+    const maxLength = firstWordLength + secondWordLength + (secondWordLength > 0 ? 1 : 0);
+    if (value.length > maxLength) {
+        hiddenInput.value = value.slice(0, maxLength);
     }
-    for (let i = 0; i < boxes.length; i++) {
-        const box = boxes[i];
-        const char = value[i] || '';
-        if (box.dataset.space === 'true') {
-            // Space position
-            if (char === '') {
-                box.textContent = '·'; // placeholder
-            } else if (char === ' ') {
-                box.textContent = '·'; // typed space
-            } else {
-                box.textContent = char; // typed letter (wrong)
-            }
-        } else {
-            // Normal letter position
-            box.textContent = char;
+    
+    // Clear all boxes
+    boxes.forEach(box => box.textContent = '');
+    
+    let boxIndex = 0;
+    for (let i = 0; i < hiddenInput.value.length; i++) {
+        const char = hiddenInput.value[i];
+        
+        // If split layout and this is the space position, skip assigning to a box
+        if (secondWordLength > 0 && i === firstWordLength) {
+            continue;
         }
+        
+        if (boxIndex < boxes.length) {
+            const box = boxes[boxIndex];
+            // If this box corresponds to a space in single‑row mode, show a dot
+            if (box.dataset.space === 'true') {
+                box.textContent = char === ' ' ? '·' : char;
+            } else {
+                box.textContent = char;
+            }
+            boxIndex++;
+        }
+    }
+    
+    // For single‑row mode: fill remaining empty space‑boxes with a dot placeholder
+    if (secondWordLength === 0) {
+        boxes.forEach((box, idx) => {
+            if (box.dataset.space === 'true' && box.textContent === '') {
+                box.textContent = '·';
+            }
+        });
     }
 }
 
@@ -284,9 +342,12 @@ function checkAnswer() {
     const userAnswer = hiddenInput.value.trim().toLowerCase();
     const correctWord = currentWordObject.word.toLowerCase();
 
-    // Length mismatch – still an attempt (already counted)
-    if (userAnswer.length !== currentWordObject.word.length) {
-        messageDiv.textContent = `请完整输入 ${currentWordObject.word.length} 个字母`;
+    // Calculate expected total characters (including the one space if two rows)
+    const expectedLength = firstWordLength + secondWordLength + (secondWordLength > 0 ? 1 : 0);
+
+    // Length mismatch – still counted as an attempt, show error and return
+    if (userAnswer.length !== expectedLength) {
+        messageDiv.textContent = `请完整输入 ${expectedLength} 个字符`;
         messageDiv.classList.add('error');
         updateStats();
         hiddenInput.focus();
@@ -296,13 +357,14 @@ function checkAnswer() {
     if (userAnswer === correctWord) {
         // Correct!
         if (isFirstAttempt) {
-            correctFirstAttempt++;   // only first correct counts
+            correctFirstAttempt++;      // only first correct counts
         }
         answeredCorrectly = true;
         messageDiv.textContent = '✅ 正确！';
         messageDiv.classList.add('success');
         translationDiv.textContent = currentWordObject.translation;
 
+        // Switch to next mode
         mode = 'next';
         actionBtn.textContent = '下一个';
         hiddenInput.disabled = true;
