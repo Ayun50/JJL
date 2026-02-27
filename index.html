@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes">
+    <title>IELTS Vocabulary Practice</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>雅思听力高频单词听写练习</h1>
+            <div class="stats">
+                <span>正确: <span id="correct-count">0</span></span>
+                <span>尝试: <span id="total-attempts">0</span></span>
+                <span>正确率: <span id="accuracy">0</span>%</span>
+            </div>
+        </header>
+
+        <!-- NEW: Word count and timer display -->
+        <div class="info-bar">
+            <span>单词总数: <span id="word-count">0</span></span>
+            <span>计时: <span id="timer-display">00:00</span></span>
+        </div>
+
+        <main>
+            <div class="theme-selector">
+                <select id="theme">
+                    <option value="" disabled selected>-- 选择词汇列表 --</option>
+                </select>
+            </div>
+
+            <div class="word-card">
+                <!-- Typing area: letter boxes + speak button -->
+                <div class="typing-area">
+                    <div id="letter-boxes" class="letter-boxes"></div>
+                    <button id="speak-btn" class="speak-btn">🔊</button>
+                </div>
+
+                <!-- Hidden input that captures typing -->
+                <input type="text" id="hidden-input" class="hidden-input" autocomplete="off" inputmode="text">
+
+                <div class="button-group">
+                    <button id="action-btn" class="action-btn">Check</button>
+                    <button id="show-answer-btn" class="show-answer-btn">Answer</button>
+                </div>
+
+                <div id="message" class="message"></div>
+                <div id="translation" class="translation"></div>
+                <div id="tip" class="tip"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

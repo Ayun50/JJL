@@ -1,0 +1,384 @@
+// Global variables
+let allWords = [];
+let filteredWords = [];
+let currentWordIndex = 0;
+let currentWordObject = null;
+let correctFirstAttempt = 0;
+let totalAttempted = 0;
+let hasAttemptedCurrent = false;
+let answeredCorrectly = false;
+let currentTheme = 'all';
+let mode = 'check';  
+let timerInterval = null;
+let timerSeconds = 0;
+let timerRunning = false;
+let hasTypedInCurrentList = false; 
+
+// DOM elements
+const themeSelect = document.getElementById('theme');
+const letterBoxesDiv = document.getElementById('letter-boxes');
+const hiddenInput = document.getElementById('hidden-input');
+const speakBtn = document.getElementById('speak-btn');
+const actionBtn = document.getElementById('action-btn');
+const messageDiv = document.getElementById('message');
+const translationDiv = document.getElementById('translation');
+const tipDiv = document.getElementById('tip');
+const correctSpan = document.getElementById('correct-count');
+const totalSpan = document.getElementById('total-attempts');
+const accuracySpan = document.getElementById('accuracy');
+const showAnswerBtn = document.getElementById('show-answer-btn');
+const wordCountSpan = document.getElementById('word-count');
+const timerDisplay = document.getElementById('timer-display');
+
+// --- Event Listeners (set once) ---
+
+// Click on letter boxes focuses hidden input (if enabled)
+letterBoxesDiv.addEventListener('click', () => {
+    if (!hiddenInput.disabled) {
+        hiddenInput.focus();
+    }
+});
+
+// FIX: Added console log and cancel() to speak button
+speakBtn.addEventListener('click', () => {
+    console.log('Speak button clicked');
+    if (speakBtn.disabled) {
+        console.log('Button is disabled – not speaking');
+        return;
+    }
+    if (currentWordObject) {
+        speakWord(currentWordObject.word);
+    } else {
+        console.log('No current word');
+    }
+});
+// Load words from JSON
+fetch('words.json')
+    .then(response => response.json())
+    .then(data => {
+        allWords = [];
+        Object.keys(data).forEach(theme => {
+            data[theme].forEach(wordObj => {
+                allWords.push({
+                    word: wordObj.word,
+                    translation: wordObj.translation,
+                    tip: wordObj.tip,
+                    theme: theme
+                });
+            });
+        });
+        populateThemes();
+        // Set default to placeholder (blank)
+        themeSelect.value = '';
+        clearWordDisplay();
+    })
+    .catch(error => {
+        console.error('Error loading words:', error);
+        messageDiv.textContent = 'Failed to load vocabulary. Please refresh.';
+        messageDiv.classList.add('error');
+    });
+
+function populateThemes() {
+    const themes = new Set(allWords.map(w => w.theme));
+    themes.forEach(theme => {
+        const option = document.createElement('option');
+        option.value = theme;
+        option.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+        themeSelect.appendChild(option);
+    });
+}
+
+function resetStats() {
+    correctFirstAttempt = 0;
+    totalAttempted = 0;
+    updateStats();
+}
+
+// Timer functions
+function startTimer() {
+    if (timerRunning) return;
+    timerRunning = true;
+    timerInterval = setInterval(() => {
+        timerSeconds++;
+        updateTimerDisplay();
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    timerRunning = false;
+}
+
+function resetTimer() {
+    stopTimer();
+    timerSeconds = 0;
+    hasTypedInCurrentList = false;
+    updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+    const minutes = Math.floor(timerSeconds / 60);
+    const seconds = timerSeconds % 60;
+    timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Update word count display
+function updateWordCount() {
+    wordCountSpan.textContent = filteredWords.length;
+}
+
+// Function to clear all word-related UI and disable controls
+function clearWordDisplay() {
+    letterBoxesDiv.innerHTML = '';
+    tipDiv.textContent = '';
+    translationDiv.textContent = '';
+    messageDiv.textContent = '';
+    messageDiv.classList.remove('error', 'success');
+    actionBtn.disabled = true;
+    speakBtn.disabled = true;
+    hiddenInput.disabled = true;
+    hiddenInput.value = '';
+}
+
+// FIX: Added shuffle function
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+// Modified filterWordsByTheme
+function filterWordsByTheme(theme) {
+    if (theme === 'all') {
+        filteredWords = [...allWords];
+    } else {
+        filteredWords = allWords.filter(w => w.theme === theme);
+    }
+    // Shuffle the filtered words so they appear in random order
+    shuffleArray(filteredWords);
+    resetStats();                     // reset counters on theme change
+    resetTimer();                      // reset timer when theme changes
+    updateWordCount();                 // update word count display
+    
+    currentWordIndex = 0;
+    if (filteredWords.length > 0) {
+        loadWord(currentWordIndex);
+    } else {
+        clearWordDisplay();
+    }
+}
+
+function loadWord(index) {
+    if (filteredWords.length === 0) return;
+    currentWordObject = filteredWords[index];
+
+    // Create letter boxes for the new word
+    createLetterBoxes(currentWordObject.word);  // pass the whole word
+
+    // Update tip, clear messages
+    tipDiv.textContent = `💡 Tip: ${currentWordObject.tip}`;
+    translationDiv.textContent = '';
+    messageDiv.textContent = '';
+    messageDiv.classList.remove('error', 'success');
+
+    // Reset state
+    hasAttemptedCurrent = false;
+    answeredCorrectly = false;
+    mode = 'check';
+    actionBtn.textContent = 'Check';
+    actionBtn.disabled = false;
+    speakBtn.disabled = false;
+    hiddenInput.value = '';
+    hiddenInput.disabled = false;
+    hiddenInput.focus();
+
+    // Reset typing flag for first word only
+    if (index === 0) {
+        hasTypedInCurrentList = false;
+    }
+
+    // Auto-speak the new word
+    speakWord(currentWordObject.word);
+}
+
+function createLetterBoxes(word) {
+    letterBoxesDiv.innerHTML = '';
+    for (let i = 0; i < word.length; i++) {
+        const box = document.createElement('span');
+        box.className = 'letter-box';
+        if (word[i] === ' ') {
+            box.dataset.space = 'true';
+            box.textContent = '·'; // placeholder dot
+        }
+        letterBoxesDiv.appendChild(box);
+    }
+}
+
+// Update letter boxes based on hidden input value
+function updateLetterBoxes() {
+    const value = hiddenInput.value;
+    const boxes = document.querySelectorAll('.letter-box');
+    if (value.length > boxes.length) {
+        hiddenInput.value = value.slice(0, boxes.length);
+    }
+    for (let i = 0; i < boxes.length; i++) {
+        const box = boxes[i];
+        const char = value[i] || '';
+        if (box.dataset.space === 'true') {
+            // Space position
+            if (char === '') {
+                box.textContent = '·'; // placeholder
+            } else if (char === ' ') {
+                box.textContent = '·'; // typed space
+            } else {
+                box.textContent = char; // typed letter (wrong)
+            }
+        } else {
+            // Normal letter position
+            box.textContent = char;
+        }
+    }
+}
+
+hiddenInput.addEventListener('input', (e) => {
+    updateLetterBoxes();
+    
+    // Start timer on first keystroke of the list
+    if (!hasTypedInCurrentList && filteredWords.length > 0 && currentWordIndex === 0) {
+        hasTypedInCurrentList = true;
+        startTimer();
+    }
+});
+
+// Enter key in hidden input triggers check (only in check mode)
+hiddenInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && mode === 'check' && !answeredCorrectly) {
+        e.preventDefault();
+        checkAnswer();
+    }
+});
+
+// Action button: Check or Next
+actionBtn.addEventListener('click', () => {
+    if (mode === 'check') {
+        checkAnswer();
+    } else {
+        goToNextWord();
+    }
+});
+
+function checkAnswer() {
+    if (!currentWordObject || mode !== 'check' || answeredCorrectly) return;
+
+    const isFirstAttempt = !hasAttemptedCurrent;
+    if (isFirstAttempt) {
+        totalAttempted++;          // count this word once
+        hasAttemptedCurrent = true; // mark first attempt done
+    }
+
+    const userAnswer = hiddenInput.value.trim().toLowerCase();
+    const correctWord = currentWordObject.word.toLowerCase();
+
+    // Length mismatch – still an attempt (already counted)
+    if (userAnswer.length !== currentWordObject.word.length) {
+        messageDiv.textContent = `请完整输入 ${currentWordObject.word.length} 个字母`;
+        messageDiv.classList.add('error');
+        updateStats();
+        hiddenInput.focus();
+        return;
+    }
+
+    if (userAnswer === correctWord) {
+        // Correct!
+        if (isFirstAttempt) {
+            correctFirstAttempt++;   // only first correct counts
+        }
+        answeredCorrectly = true;
+        messageDiv.textContent = '✅ 正确！';
+        messageDiv.classList.add('success');
+        translationDiv.textContent = currentWordObject.translation;
+
+        mode = 'next';
+        actionBtn.textContent = '下一个';
+        hiddenInput.disabled = true;
+        actionBtn.focus();
+    } else {
+        // Wrong answer
+        messageDiv.textContent = '❌ 错误，再试一次';
+        messageDiv.classList.add('error');
+        hiddenInput.value = '';
+        updateLetterBoxes();
+        hiddenInput.focus();
+    }
+    updateStats();
+}
+
+function goToNextWord() {
+    if (filteredWords.length === 0) return;
+    currentWordIndex = (currentWordIndex + 1) % filteredWords.length;
+    loadWord(currentWordIndex);
+}
+
+function updateStats() {
+    correctSpan.textContent = correctFirstAttempt;
+    totalSpan.textContent = totalAttempted;
+    const accuracy = totalAttempted > 0 ? Math.round((correctFirstAttempt / totalAttempted) * 100) : 0;
+    accuracySpan.textContent = accuracy;
+}
+
+// FIX: Added cancel() to avoid speech queue issues
+function speakWord(word) {
+    window.speechSynthesis.cancel(); // stop any ongoing speech
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.speak(utterance);
+}
+
+function revealAnswer() {
+    if (!currentWordObject || answeredCorrectly) return; // already correct, but we can still show
+
+    // Fill the hidden input with the correct word
+    hiddenInput.value = currentWordObject.word;
+    updateLetterBoxes();
+
+    // Show translation
+    translationDiv.textContent = currentWordObject.translation;
+
+    // Show a message
+    messageDiv.textContent = 'Answer revealed. Moving to next word.';
+    messageDiv.classList.add('success');
+
+    // Switch to next mode without counting stats
+    answeredCorrectly = true;      // prevent further checking
+    mode = 'next';
+    actionBtn.textContent = 'Next Word';
+    hiddenInput.disabled = true;
+    actionBtn.focus();
+
+    // Do NOT update stats (no attempt counted)
+}
+
+// Theme change
+themeSelect.addEventListener('change', (e) => {
+    const selected = e.target.value;
+    if (selected === '') {
+        // Placeholder selected – do nothing, keep blank
+        clearWordDisplay();
+        resetStats();
+        return;
+    }
+    currentTheme = selected;
+    filterWordsByTheme(selected);
+});
+
+// Guard in case button is missing (though it's present)
+if (showAnswerBtn) {
+    showAnswerBtn.addEventListener('click', revealAnswer);
+} else {
+    console.warn('Show answer button not found');
+}
