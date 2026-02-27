@@ -108,21 +108,24 @@ h1 {
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
 }
 
-/* New: container for letter boxes and speak button */
+/* Container for letter boxes and speak button */
 .typing-area {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: 16px;
     margin-bottom: 20px;
+}
+
+.word-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
     flex-wrap: wrap;
 }
 
 .letter-boxes {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
+    width: 100%;
 }
 
 .letter-box {
@@ -137,7 +140,7 @@ h1 {
     background: transparent;
 }
 
-/* Speak button – now next to letter boxes */
+/* Speak button */
 .speak-btn {
     background: none;
     border: none;
@@ -225,17 +228,7 @@ h1 {
     box-shadow: none;
 }
 
-.action-btn:hover:not(:disabled) {
-    background: #27ae60;
-    transform: translateY(-2px);
-}
-
-.action-btn:disabled {
-    background: #bdc3c7;
-    cursor: not-allowed;
-    opacity: 0.6;
-    box-shadow: none;
-}
+/* Duplicate rules removed (clean) */
 
 .message {
     min-height: 40px;
@@ -268,6 +261,9 @@ h1 {
     margin-top: 8px;
 }
 
+/* ========== MEDIA QUERIES ========== */
+
+/* Phones (max-width: 600px) */
 @media (max-width: 600px) {
     .container {
         padding: 16px;
@@ -289,5 +285,56 @@ h1 {
         font-size: 1.8rem;
         width: 2.5rem;
         height: 2.5rem;
+    }
+}
+
+/* Tablets (601px – 1024px) */
+@media (min-width: 601px) and (max-width: 1024px) {
+    .letter-box {
+        width: 3rem;
+        height: 3.5rem;
+        font-size: 2.2rem;
+        line-height: 3.5rem;
+    }
+    .speak-btn {
+        font-size: 2.5rem;
+        width: 3.5rem;
+        height: 3.5rem;
+    }
+    .typing-area {
+        gap: 24px;
+    }
+    .button-group {
+        gap: 20px;
+    }
+}
+
+/* Large desktops (≥1200px) */
+@media (min-width: 1200px) {
+    .container {
+        max-width: 1000px;
+        padding: 32px;
+    }
+    h1 {
+        font-size: 2.2rem;
+    }
+    .letter-box {
+        width: 3rem;
+        height: 3.5rem;
+        font-size: 2.4rem;
+        line-height: 3.5rem;
+    }
+    .speak-btn {
+        font-size: 2.5rem;
+        width: 3.5rem;
+        height: 3.5rem;
+    }
+    .info-bar {
+        padding: 12px 24px;
+        font-size: 1.2rem;
+    }
+    .stats {
+        font-size: 1.2rem;
+        padding: 10px 20px;
     }
 }
