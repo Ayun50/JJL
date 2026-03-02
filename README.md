@@ -46,8 +46,6 @@ Web Speech API – 浏览器内置语音合成
 JSON – 灵活的词库存储格式
 
 ## 📁 项目结构
-text
-.
 ├── index.html          # 主页面
 ├── style.css           # 样式文件（包含多端适配）
 ├── script.js           # 核心逻辑
