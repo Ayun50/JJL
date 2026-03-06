@@ -179,8 +179,13 @@ function clearWordDisplay() {
 function loadWord(index) {
     if (filteredWords.length === 0) return;
     currentWordObject = filteredWords[index];
-    createLetterBoxes(currentWordObject.word);
-    tipDiv.textContent = `💡 Tip: ${currentWordObject.tip}`;
+    
+    // 获取所有变体，找到最长字符串（用于生成输入框）
+    const variants = currentWordObject.variants || [currentWordObject.word];
+    const longestVariant = variants.reduce((a, b) => a.length >= b.length ? a : b);
+    createLetterBoxes(longestVariant);   // 用最长变体创建框
+    
+    tipDiv.textContent = '';   // 隐藏 tip
     translationDiv.textContent = '';
     messageDiv.textContent = '';
     messageDiv.classList.remove('error', 'success');
@@ -194,7 +199,7 @@ function loadWord(index) {
     hiddenInput.disabled = false;
     hiddenInput.focus();
     if (index === 0) hasTypedInCurrentList = false;
-    speakWord(currentWordObject.word);
+    speakWord(currentWordObject.word);   // 仍朗读主单词（可根据需要调整）
 }
 function createLetterBoxes(word) {
     letterBoxesDiv.innerHTML = '';
@@ -283,7 +288,7 @@ actionBtn.addEventListener('click', () => {
 // 修改后的检查答案函数，支持变体和大小写敏感
 function checkAnswer() {
     if (!currentWordObject || mode !== 'check' || answeredCorrectly) return;
-
+    tipDiv.textContent = `💡 Tip: ${currentWordObject.tip}`;
     const isFirstAttempt = !hasAttemptedCurrent;
     if (isFirstAttempt) {
         totalAttempted++;
@@ -357,6 +362,7 @@ function speakWord(word) {
 // 修改后的显示答案函数：填充主单词（不参与正确率统计）
 function revealAnswer() {
     if (!currentWordObject || answeredCorrectly) return;
+    tipDiv.textContent = `💡 Tip: ${currentWordObject.tip}`;
     hiddenInput.value = currentWordObject.word; // 显示主单词
     updateLetterBoxes();
     translationDiv.textContent = currentWordObject.translation;
@@ -374,4 +380,3 @@ if (showAnswerBtn) {
 } else {
     console.warn('Show answer button not found');
 }
-
